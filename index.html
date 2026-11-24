@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#284d3c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Coaching Tracker">
+<title>Daily Coaching Tracker</title>
+<style>
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:#f5f5ef;color:#222b25;font:16px/1.5 system-ui,sans-serif}
+main{max-width:880px;margin:auto;padding:clamp(16px,4vw,42px)}
+h1,h2{font-family:Georgia,serif;font-weight:normal;line-height:1.12;margin:0}
+h1{font-size:clamp(2.2rem,6vw,3.6rem)}
+h2{font-size:1.6rem}
+p{margin:.5rem 0;color:#45554b}
+section,dialog{background:#fffefa;border:1px solid #d7dfd5;border-radius:14px;padding:clamp(14px,3vw,24px)}
+section{margin-top:14px}
+header{margin-bottom:22px}
+button,input,textarea{font:inherit;color:inherit}
+button,input,textarea{border:1px solid #89998d;border-radius:7px;background:#fffefa;padding:7px 10px}
+button{cursor:pointer}
+button:hover{background:#eaf0e8}
+.primary{background:#284d3c;color:white;border-color:#284d3c}
+.primary:hover{background:#193b2c}
+:focus-visible{outline:3px solid #48765f;outline-offset:2px}
+.row{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.between{justify-content:space-between}
+label{display:grid;gap:4px;font-weight:600;min-width:0}
+textarea{resize:vertical;min-height:68px;width:100%;font-weight:normal}
+input{min-width:0;max-width:100%;font-weight:normal}
+small{color:#45554b;font-weight:normal}
+.entries article{border-top:1px solid #d7dfd5;margin-top:12px;padding-top:12px}
+dl{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;flex:1;min-width:min(100%,280px)}
+dt{font-size:.83rem;font-weight:650;color:#45554b}
+dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+dialog{width:min(580px,calc(100% - 24px));max-height:90vh;overflow:auto;color:inherit}
+dialog::backdrop{background:#15251db0}
+.fields{display:grid;gap:10px;margin:14px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;margin:14px 0}
+.stat{background:#edf2eb;border-radius:8px;padding:8px 10px;font-size:.85rem}
+.stat strong{display:block;font-size:1.2rem}
+.scroll{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{border-bottom:1px solid #e0e5dc;padding:5px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+tr.selected{background:#edf2eb}
+#storageError{color:#8a2e20;font-weight:600}
+#status{min-height:1.5em}
+footer{margin-top:14px}
+.error{color:#8a2e20;font-weight:600}
+details>summary{cursor:pointer;font-weight:600}
+@media(max-width:460px){dl{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main id="lock">
+<header>
+<h1>Daily Coaching Tracker</h1>
+<p id="lockIntro"></p>
+</header>
+<section aria-label="Password">
+<form id="lockForm">
+<div class="fields">
+<label for="pw">Password<input id="pw" type="password" autocomplete="current-password" required></label>
+<label for="pw2" id="pw2Label" hidden>Confirm password<input id="pw2" type="password" autocomplete="new-password"></label>
+</div>
+<p id="lockError" class="error" role="alert" hidden></p>
+<div class="row"><button class="primary" type="submit" id="lockSubmit">Unlock</button></div>
+</form>
+<p><small id="lockNote"></small></p>
+</section>
+<section aria-label="Restore">
+<details>
+<summary>Restore from a backup file</summary>
+<div class="fields">
+<label for="restoreFile">Backup file<input type="file" id="restoreFile" accept=".json,application/json"></label>
+<label for="restorePw">Backup password<input type="password" id="restorePw" autocomplete="off"></label>
+<p id="restoreError" class="error" role="alert" hidden></p>
+<div class="row"><button type="button" id="restoreBtn">Restore</button></div>
+</div>
+</details>
+</section>
+</main>
+
+<main id="appMain" hidden>
+<header>
+<h1>Daily Coaching Tracker</h1>
+<p>A two-week experiment in reactivity, responsibility, enjoyment, and presence.</p>
+</header>
+
+<section aria-label="Day navigation">
+<div class="row">
+<button id="previous" aria-label="Previous day">←</button>
+<label for="day">Log date</label><input type="date" id="day" required>
+<button id="next" aria-label="Next day">→</button>
+<button id="today">Today</button>
+</div>
+<p id="dayContext"></p>
+<p id="storageError" role="alert" hidden></p>
+</section>
+
+<div id="logs"></div>
+
+<section aria-labelledby="summaryHeading">
+<div class="row between">
+<h2 id="summaryHeading">14-day summary</h2>
+<label for="start">Experiment start <input type="date" id="start" required></label>
+</div>
+<p id="period"></p>
+<div class="stats" id="stats"></div>
+<details>
+<summary>Day-by-day breakdown</summary>
+<div class="scroll">
+<table aria-label="Daily observations across the experiment">
+<thead><tr><th scope="col">Date</th><th scope="col">Events</th><th scope="col">Avg. intensity</th><th scope="col">Avg. duration</th><th scope="col">Responsibility notes</th><th scope="col">Enjoyment</th><th scope="col">Reflection</th></tr></thead>
+<tbody id="breakdown"></tbody>
+</table>
+</div>
+</details>
+<p>Exports include detailed entries for the selected 14 days.</p>
+<div class="row">
+<button id="json">Download JSON</button>
+<button id="csv">Download CSV</button>
+</div>
+</section>
+<section aria-labelledby="securityHeading">
+<h2 id="securityHeading">Security &amp; backup</h2>
+<p>Entries are encrypted with your password. The app locks itself after a few minutes in the background.</p>
+<div class="row">
+<button id="backup">Back up everything (encrypted)</button>
+<button id="lockNow">Lock now</button>
+</div>
+</section>
+<footer>
+<p id="status" role="status"></p>
+<small>Entries stay in this browser’s storage on this device. Make an encrypted backup before clearing browser data or removing the app. The 14-day JSON and CSV exports above are not encrypted.</small>
+</footer>
+</main>
+
+<dialog id="editor" aria-labelledby="editorHeading">
+<form id="entryForm">
+<h2 id="editorHeading"></h2>
+<div class="fields" id="fields"></div>
+<p id="formError" role="alert" hidden></p>
+<div class="row">
+<button class="primary" type="submit">Save entry</button>
+<button type="button" id="cancel">Cancel</button>
+</div>
+</form>
+</dialog>
+
+<script>
+'use strict';
+const sections = {
+  reactivity: {
+    title: 'Reactivity observation', item: 'event',
+    prompt: 'Replay one moment. What happened, what did you notice in yourself, and how did the reaction change?',
+    fields: [
+      ['trigger', 'Trigger', null, 'What happened just before you reacted? Describe what someone else could have seen or heard.'],
+      ['body', 'Body sensations', null, 'Where did you feel it first? What changed in your breathing, jaw, chest, stomach, or posture?'],
+      ['emotions', 'Emotions', null, 'What feeling showed up first? Did another feeling emerge as you paid attention?'],
+      ['intensity', 'Intensity (0–10)', 10, 'How strong was the reaction at its peak? Use 0 for no reaction and 10 for the strongest you can imagine.'],
+      ['narrative', 'Mental narrative', null, 'What did you tell yourself this meant? What did you assume about someone’s intentions or predict would happen next?'],
+      ['resistance', 'Resistance', null, 'What felt hardest to accept? Did you notice an urge to replay it, push the feeling away, or control the outcome?'],
+      ['response', 'Response', null, 'What did you actually do or say? What, if anything, needed your attention right then?'],
+      ['resolution', 'Resolution', null, 'What helped the reaction ease? What lingered or still needs attention?'],
+      ['duration', 'Duration until settled (minutes)', Infinity, 'Estimate from the trigger until you felt able to re-engage. If you’re still activated, leave this blank and revisit it later.']
+    ]
+  },
+  responsibility: {
+    title: 'Selective responsibility', item: 'responsibility note',
+    prompt: 'Pick one responsibility you took on or considered taking on. Who does it serve? Would you still choose it if nobody expected it or would be disappointed if you declined?',
+    fields: [
+      ['beneficiary', 'Who does it serve?', null, 'Whose needs, priorities, or goals does taking this on serve? Include yourself if it serves something you care about.'],
+      ['motivation', 'What led you to take it on?', null, 'Was it your own choice, an effort to appease someone or avoid their disapproval, or a mix? If you felt free to decline, what would you choose?'],
+      ['actual', 'Actual responsibility', null, 'What part is yours because of a role, agreement, or commitment?'],
+      ['assumed', 'Voluntarily assumed', null, 'What did you take on beyond that commitment?'],
+      ['outside', 'Outside my control', null, 'Whose decision, reaction, or timing was beyond your control? Where could you still have some influence?']
+    ]
+  },
+  enjoyment: {
+    title: 'Enjoyment', item: 'activity',
+    prompt: 'Recall a moment you enjoyed for its own sake. What drew you in or made you want to stay with it?',
+    fields: [
+      ['activity', 'Activity', null, 'What did you do, and what part felt enjoyable? You can include who you were with or what you noticed.'],
+      ['minutes', 'Minutes', Infinity, 'About how long did you spend on the activity? An estimate is enough.']
+    ]
+  },
+  reflection: {
+    title: 'Daily reflection', item: 'reflection', single: true,
+    prompt: 'Look back on how you settled after stress and how available you felt for the rest of your day.',
+    fields: [
+      ['recovery', 'Recovery', null, 'When did you notice yourself settling or getting pulled back in? What helped you recover, and what were you still carrying at the end of the day?'],
+      ['presence', 'Presence', null, 'When were you most available to family or your personal life? Where was your attention during a specific moment, and what helped you come back if it wandered?']
+    ]
+  }
+};
+const $ = id => document.getElementById(id);
+const storageKey = 'daily-coaching-tracker-v1';
+const status = message => { $('status').textContent = message; };
+const reportStorageError = message => {
+  $('storageError').textContent = message;
+  $('storageError').hidden = false;
+};
+const dateKey = date => [
+  String(date.getFullYear()).padStart(4, '0'),
+  String(date.getMonth() + 1).padStart(2, '0'),
+  String(date.getDate()).padStart(2, '0')
+].join('-');
+const today = () => dateKey(new Date());
+function dateAt(key, offset = 0) {
+  const date = new Date(key + 'T12:00:00');
+  date.setDate(date.getDate() + offset);
+  return date;
+}
+const shortDate = new Intl.DateTimeFormat(undefined, {month: 'short', day: 'numeric', year: 'numeric'});
+const vaultKey = 'daily-coaching-tracker-vault-v1';
+const emptyData = () => ({version: 1, start: today(), days: {}});
+let data = emptyData();
+let cryptoKey = null, salt = null, saveChain = Promise.resolve();
+const encoder = new TextEncoder(), decoder = new TextDecoder();
+const toB64 = buffer => { let text = ''; for (const byte of new Uint8Array(buffer)) text += String.fromCharCode(byte); return btoa(text); };
+const fromB64 = text => Uint8Array.from(atob(text), char => char.charCodeAt(0));
+const validData = parsed => parsed?.version === 1 && parsed.days && Number.isFinite(+dateAt(parsed.start));
+async function deriveKey(password, saltBytes) {
+  const base = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name: 'PBKDF2', salt: saltBytes, iterations: 600000, hash: 'SHA-256'},
+    base, {name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+}
+async function sealVault() {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({name: 'AES-GCM', iv}, cryptoKey, encoder.encode(JSON.stringify(data)));
+  return JSON.stringify({app: 'daily-coaching-tracker', v: 1, salt: toB64(salt), iv: toB64(iv), ct: toB64(ct)});
+}
+async function openVault(text, password) {
+  const file = JSON.parse(text);
+  if (file?.app !== 'daily-coaching-tracker' || !file.salt || !file.iv || !file.ct) throw new Error('format');
+  const saltBytes = fromB64(file.salt);
+  const key = await deriveKey(password, saltBytes);
+  const plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: fromB64(file.iv)}, key, fromB64(file.ct));
+  const parsed = JSON.parse(decoder.decode(plain));
+  if (!validData(parsed)) throw new Error('data');
+  return {key, saltBytes, parsed};
+}
+function persist() {
+  saveChain = saveChain.then(async () => {
+    try {
+      localStorage.setItem(vaultKey, await sealVault());
+      $('storageError').hidden = true;
+    } catch {
+      reportStorageError('The browser could not save changes. Keep this tab open and use Back up everything.');
+    }
+  });
+  return saveChain;
+}
+function commit(updated) {
+  data = updated;
+  if (!cryptoKey) return false;
+  persist();
+  return true;
+}
+let day = today();
+let editing;
+const editor = $('editor');
+const form = $('entryForm');
+
+function element(tag, content, className) {
+  const node = document.createElement(tag);
+  if (content !== undefined) node.textContent = content;
+  if (className) node.className = className;
+  return node;
+}
+function button(label, action, className) {
+  const node = element('button', label, className);
+  node.type = 'button';
+  node.addEventListener('click', action);
+  return node;
+}
+const records = (date, kind) => data.days[date]?.[kind] ?? [];
+
+function selectDay(key) {
+  if (!key || !Number.isFinite(+dateAt(key))) return;
+  day = key;
+  render();
+}
+function updateRecords(kind, next) {
+  const daily = {...data.days[day]};
+  if (next.length) daily[kind] = next;
+  else delete daily[kind];
+  const days = {...data.days};
+  if (Object.keys(daily).length) days[day] = daily;
+  else delete days[day];
+  return commit({...data, days});
+}
+function openEditor(kind, index) {
+  const section = sections[kind];
+  const record = records(day, kind)[index] ?? {};
+  editing = {kind, index};
+  $('editorHeading').textContent = (index === undefined ? 'Add ' : 'Edit ') + section.item;
+  $('formError').hidden = true;
+  const fields = section.fields.map(([key, caption, max, hint]) => {
+    const label = element('label', caption);
+    const numeric = typeof max === 'number';
+    const field = element(numeric || key === 'activity' ? 'input' : 'textarea');
+    field.name = key;
+    field.value = record[key] ?? '';
+    if (numeric) {
+      field.type = 'number';
+      field.min = '0';
+      field.step = '1';
+      if (Number.isFinite(max)) field.max = max;
+    }
+    if (kind === 'enjoyment') field.required = true;
+    label.append(field);
+    if (hint) {
+      const help = element('small', hint);
+      help.id = 'hint-' + key;
+      field.setAttribute('aria-describedby', help.id);
+      label.append(help);
+    }
+    return label;
+  });
+  $('fields').replaceChildren(...fields);
+  editor.showModal();
+}
+$('cancel').onclick = () => editor.close();
+form.onsubmit = event => {
+  event.preventDefault();
+  const {kind, index} = editing;
+  const record = {};
+  for (const [key, , max] of sections[kind].fields) {
+    const value = form.elements.namedItem(key).value.trim();
+    if (value !== '') record[key] = typeof max === 'number' ? Number(value) : value;
+  }
+  if (!Object.keys(record).length || (kind === 'enjoyment' && !record.activity)) {
+    $('formError').textContent = 'Enter an observation before saving.';
+    $('formError').hidden = false;
+    return;
+  }
+  const list = [...records(day, kind)];
+  if (index === undefined) list.push(record);
+  else list[index] = record;
+  const saved = updateRecords(kind, list);
+  editor.close();
+  render();
+  status(saved ? 'Entry saved.' : 'Entry updated in this tab.');
+  $('logs').querySelector('[data-kind="' + kind + '"]').focus();
+};
+function removeEntry(kind, index) {
+  if (!confirm('Delete this ' + sections[kind].item + '?')) return;
+  const saved = updateRecords(kind, records(day, kind).filter((_, i) => i !== index));
+  render();
+  status(saved ? 'Entry deleted.' : 'Entry removed in this tab.');
+  $('logs').querySelector('[data-kind="' + kind + '"]').focus();
+}
+function renderLogs() {
+  const panels = Object.entries(sections).map(([kind, section]) => {
+    const panel = element('section');
+    const list = records(day, kind);
+    const heading = element('h2', section.title);
+    heading.id = kind + '-heading';
+    panel.setAttribute('aria-labelledby', heading.id);
+    const header = element('div', undefined, 'row between');
+    header.append(heading);
+    if (!section.single || !list.length) {
+      const add = button('Add ' + section.item, () => openEditor(kind), 'primary');
+      add.dataset.kind = kind;
+      header.append(add);
+    }
+    panel.append(header);
+    if (section.prompt) panel.append(element('p', section.prompt));
+    if (!list.length) panel.append(element('small', 'No entries for this date.'));
+    const entries = element('div', undefined, 'entries');
+    list.forEach((record, index) => {
+      const entry = element('article', undefined, 'row between');
+      const values = element('dl');
+      for (const [key, caption] of section.fields) {
+        if (record[key] === undefined) continue;
+        const group = element('div');
+        group.append(element('dt', caption), element('dd', record[key]));
+        values.append(group);
+      }
+      const actions = element('div', undefined, 'row');
+      const edit = button('Edit', () => openEditor(kind, index));
+      if (section.single) edit.dataset.kind = kind;
+      edit.setAttribute('aria-label', 'Edit ' + section.item + (section.single ? '' : ' ' + (index + 1)));
+      const remove = button('Delete', () => removeEntry(kind, index));
+      remove.setAttribute('aria-label', 'Delete ' + section.item + (section.single ? '' : ' ' + (index + 1)));
+      actions.append(edit, remove);
+      entry.append(values, actions);
+      entries.append(entry);
+    });
+    panel.append(entries);
+    return panel;
+  });
+  $('logs').replaceChildren(...panels);
+}
+const experimentDates = () => Array.from({length: 14}, (_, i) => dateKey(dateAt(data.start, i)));
+const total = values => values.reduce((sum, value) => sum + value, 0);
+const numbers = (list, key) => list.map(item => item[key]).filter(Number.isFinite);
+const average = values => values.length ? (total(values) / values.length).toFixed(1) : '—';
+const withUnit = (value, unit) => value === '—' ? value : value + unit;
+function renderSummary(dates) {
+  const events = dates.flatMap(date => records(date, 'reactivity'));
+  const activities = dates.flatMap(date => records(date, 'enjoyment'));
+  const dailyCount = dates.filter(date => data.days[date]).length;
+  $('period').textContent = shortDate.format(dateAt(dates[0])) + ' – ' + shortDate.format(dateAt(dates[13]));
+  const metrics = [
+    ['Days with entries', dailyCount + ' / 14'],
+    ['Reactivity events', events.length],
+    ['Average intensity', withUnit(average(numbers(events, 'intensity')), ' / 10')],
+    ['Average duration', withUnit(average(numbers(events, 'duration')), ' min')],
+    ['Enjoyment logged', total(numbers(activities, 'minutes')) + ' min']
+  ];
+  $('stats').replaceChildren(...metrics.map(([label, value]) => {
+    const item = element('div', label, 'stat');
+    item.append(element('strong', value));
+    return item;
+  }));
+  $('breakdown').replaceChildren(...dates.map(date => {
+    const row = element('tr', undefined, date === day ? 'selected' : undefined);
+    const dayEvents = records(date, 'reactivity');
+    const dayEnjoyment = numbers(records(date, 'enjoyment'), 'minutes');
+    const heading = element('th');
+    heading.scope = 'row';
+    const link = button(shortDate.format(dateAt(date)), () => {
+      selectDay(date);
+      $('day').focus();
+    });
+    if (date === day) link.setAttribute('aria-current', 'date');
+    heading.append(link);
+    row.append(heading);
+    const values = [
+      dayEvents.length, average(numbers(dayEvents, 'intensity')),
+      withUnit(average(numbers(dayEvents, 'duration')), ' min'),
+      records(date, 'responsibility').length,
+      dayEnjoyment.length ? total(dayEnjoyment) + ' min' : '—',
+      records(date, 'reflection').length ? 'Logged' : '—'
+    ];
+    row.append(...values.map(value => element('td', value)));
+    return row;
+  }));
+}
+function render() {
+  $('day').value = day;
+  $('start').value = data.start;
+  const dates = experimentDates();
+  const index = dates.indexOf(day);
+  $('dayContext').textContent = index >= 0 ? 'Day ' + (index + 1) + ' of 14' : 'Outside the current 14-day experiment';
+  renderLogs();
+  renderSummary(dates);
+}
+$('day').onchange = event => {
+  selectDay(event.target.value);
+  event.target.value = day;
+};
+$('previous').onclick = () => selectDay(dateKey(dateAt(day, -1)));
+$('next').onclick = () => selectDay(dateKey(dateAt(day, 1)));
+$('today').onclick = () => selectDay(today());
+$('start').onchange = event => {
+  const start = event.target.value;
+  if (!start || !Number.isFinite(+dateAt(start))) {
+    event.target.value = data.start;
+    return;
+  }
+  const saved = commit({...data, start});
+  render();
+  status(saved ? 'Experiment start saved.' : 'Experiment start updated in this tab.');
+};
+async function deliver(name, type, content) {
+  const file = new File([content], name, {type});
+  if (matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({files: [file]})) {
+    try { await navigator.share({files: [file]}); return; }
+    catch (error) { if (error.name === 'AbortError') return; }
+  }
+  const url = URL.createObjectURL(file);
+  const anchor = element('a');
+  anchor.href = url;
+  anchor.download = name;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function download(extension, type, content) {
+  deliver('coaching-tracker-' + data.start + '.' + extension, type, content)
+    .then(() => status(extension.toUpperCase() + ' export prepared.'));
+}
+$('json').onclick = () => {
+  const dates = experimentDates();
+  const days = dates.map(date => ({
+    date,
+    ...Object.fromEntries(Object.keys(sections).map(kind => [kind, records(date, kind)]))
+  }));
+  download('json', 'application/json', JSON.stringify({
+    version: 1, start: dates[0], end: dates[13], days
+  }, null, 2));
+};
+function csvCell(value) {
+  let string = String(value ?? '');
+  // Keep text entries from being evaluated as formulas in spreadsheet apps.
+  if (typeof value === 'string' && /^[\s\uFEFF]*[=+\-@]/.test(string)) string = "'" + string;
+  return '"' + string.replaceAll('"', '""') + '"';
+}
+$('csv').onclick = () => {
+  const columns = Object.values(sections).flatMap(section => section.fields.map(([key]) => key));
+  const rows = [['date', 'type', ...columns]];
+  for (const date of experimentDates()) {
+    for (const kind of Object.keys(sections)) {
+      for (const record of records(date, kind)) {
+        rows.push([date, kind, ...columns.map(key => record[key])]);
+      }
+    }
+  }
+  download('csv', 'text/csv;charset=utf-8', '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n'));
+};
+const showError = (id, message) => { $(id).textContent = message; $(id).hidden = false; };
+const storedVault = () => { try { return localStorage.getItem(vaultKey); } catch { return undefined; } };
+function readLegacy() {
+  try {
+    const saved = localStorage.getItem(storageKey);
+    const parsed = saved === null ? null : JSON.parse(saved);
+    return validData(parsed) ? parsed : null;
+  } catch { return null; }
+}
+const isFileProblem = error => error instanceof SyntaxError || error.message === 'format' || error.message === 'data';
+const resetState = () => { cryptoKey = null; salt = null; data = emptyData(); };
+let mode = 'unlock', legacy = null;
+function enterApp() {
+  $('pw').value = ''; $('pw2').value = ''; $('restorePw').value = '';
+  $('lock').hidden = true;
+  $('appMain').hidden = false;
+  render();
+}
+function initLock() {
+  const stored = storedVault();
+  if (!(window.crypto && crypto.subtle)) {
+    showError('lockError', 'This browser does not support the encryption this app needs. Open it in an up-to-date Safari or Chrome over https.');
+    $('lockSubmit').disabled = true;
+  } else if (stored === undefined) {
+    showError('lockError', 'This browser is blocking storage, so nothing could be saved. Turn off private browsing and try again.');
+    $('lockSubmit').disabled = true;
+  }
+  mode = stored ? 'unlock' : 'setup';
+  if (mode === 'setup') {
+    legacy = readLegacy();
+    $('lockIntro').textContent = 'Choose a password to protect your entries.';
+    $('lockSubmit').textContent = 'Create password';
+    $('pw').autocomplete = 'new-password';
+    $('pw2Label').hidden = false;
+    $('pw2').required = true;
+    $('lockNote').textContent = (legacy ? 'Your existing entries will be encrypted with this password. ' : '') +
+      'Use at least 8 characters. If you forget it, your entries cannot be recovered, so keep it in a password manager.';
+  } else {
+    $('lockIntro').textContent = 'Enter your password to open your tracker.';
+    $('lockNote').textContent = 'Forgotten passwords cannot be recovered. You can restore from a backup file below.';
+  }
+  $('pw').focus();
+}
+$('lockForm').onsubmit = async event => {
+  event.preventDefault();
+  $('lockError').hidden = true;
+  const password = $('pw').value;
+  $('lockSubmit').disabled = true;
+  try {
+    if (mode === 'setup') {
+      if (password.length < 8) throw new Error('short');
+      if (password !== $('pw2').value) throw new Error('mismatch');
+      salt = crypto.getRandomValues(new Uint8Array(16));
+      cryptoKey = await deriveKey(password, salt);
+      if (legacy) data = legacy;
+      localStorage.setItem(vaultKey, await sealVault());
+      if (legacy) { try { localStorage.removeItem(storageKey); } catch {} }
+    } else {
+      const opened = await openVault(localStorage.getItem(vaultKey), password);
+      cryptoKey = opened.key; salt = opened.saltBytes; data = opened.parsed;
+    }
+    enterApp();
+  } catch (error) {
+    resetState();
+    showError('lockError', {
+      short: 'Use at least 8 characters.',
+      mismatch: 'The two passwords don’t match.'
+    }[error.message] ?? (mode === 'setup' ? 'The browser could not save your data.'
+      : isFileProblem(error) ? 'The saved data is damaged. Restore from a backup file below.' : 'Wrong password.'));
+  } finally {
+    $('lockSubmit').disabled = false;
+  }
+};
+$('restoreBtn').onclick = async () => {
+  $('restoreError').hidden = true;
+  const file = $('restoreFile').files[0], password = $('restorePw').value;
+  if (!file || !password) return showError('restoreError', 'Choose a backup file and enter its password.');
+  if (storedVault() && !confirm('This replaces everything currently saved in this app with the backup. Continue?')) return;
+  try {
+    const opened = await openVault(await file.text(), password);
+    cryptoKey = opened.key; salt = opened.saltBytes; data = opened.parsed;
+    localStorage.setItem(vaultKey, await sealVault());
+    enterApp();
+  } catch (error) {
+    resetState();
+    showError('restoreError', isFileProblem(error) ? 'That doesn’t look like a backup from this app.'
+      : error.name === 'OperationError' ? 'Wrong password for that backup.' : 'The browser could not save the restored data.');
+  }
+};
+$('backup').onclick = async () => {
+  try {
+    await deliver('coaching-tracker-backup-' + today() + '.json', 'application/json', await sealVault());
+    status('Encrypted backup prepared. Keep it somewhere safe and remember its password.');
+  } catch { status('The backup could not be created.'); }
+};
+const lockNow = () => saveChain.then(() => location.reload());
+$('lockNow').onclick = lockNow;
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (!cryptoKey) return;
+  if (document.hidden) hiddenAt = Date.now();
+  else if (hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000 && !editor.open) lockNow();
+});
+initLock();
+</script>
+</body>
+</html>
